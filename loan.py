@@ -127,9 +127,14 @@ class Loan(object):
         if not self._check_required_inputs(ignore_principal=True):
             raise RuntimeError("All necessary variables have not been set.")
 
-        return self.principal * self.calculate_form_factor(
+        payment = self.principal * self.calculate_form_factor(
             self.frequency, self.length, self.rate
         )
+
+        if store_result:
+            self.payment = payment
+
+        return payment
 
     def calculate_principal(self, store_result=False):
         """Calculate the total loan principal based on the loan frequency, length,
@@ -141,9 +146,14 @@ class Loan(object):
         if not self._check_required_inputs(ignore_payment=True):
             raise RuntimeError("All necessary variables have not been set.")
 
-        return self.payment / self.calculate_form_factor(
+        principal = self.payment / self.calculate_form_factor(
             self.frequency, self.length, self.rate
         )
+
+        if store_result:
+            self.principal = principal
+
+        return principal
 
     def _check_required_inputs(self, ignore_payment=True, ignore_principal=True):
         """Check that inputs required for calculations have been set.
