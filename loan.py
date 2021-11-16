@@ -25,9 +25,9 @@ class Loan(object):
     @frequency.setter
     def frequency(self, value):
         if not isinstance(value, int):
-            raise TypeError("Frequency must be an integer.")
+            raise TypeError('Frequency must be an integer.')
         if value <= 0:
-            raise ValueError("Frequency must be greater than zero.")
+            raise ValueError('Frequency must be greater than zero.')
         self._frequency = value
 
     @property
@@ -36,9 +36,9 @@ class Loan(object):
     @length.setter
     def length(self, value):
         if not isinstance(value, int):
-            raise TypeError("Length must be an integer.")
+            raise TypeError('Length must be an integer.')
         if value <= 0:
-            raise ValueError("Length must be greater than zero.")
+            raise ValueError('Length must be greater than zero.')
         self._length = value
 
     @property
@@ -47,9 +47,9 @@ class Loan(object):
     @payment.setter
     def payment(self, value):
         if not isinstance(value, int) and not isinstance(value, float):
-            raise TypeError("Payment must be numeric.")
+            raise TypeError('Payment must be numeric.')
         if value < 0:
-            raise ValueError("Payment must be greater than or equal to zero.")
+            raise ValueError('Payment must be greater than or equal to zero.')
         self._payment = value
 
     @property
@@ -58,9 +58,9 @@ class Loan(object):
     @principal.setter
     def principal(self, value):
         if not isinstance(value, int) and not isinstance(value, float):
-            raise TypeError("Principal must be numeric.")
+            raise TypeError('Principal must be numeric.')
         if value < 0:
-            raise ValueError("Principal must be greater than or equal to zero.")
+            raise ValueError('Principal must be greater than or equal to zero.')
         self._principal = value
 
     @property
@@ -69,9 +69,9 @@ class Loan(object):
     @rate.setter
     def rate(self, value):
         if not isinstance(value, int) and not isinstance(value, float):
-            raise TypeError("Rate must be numeric.")
+            raise TypeError('Rate must be numeric.')
         if value < 0:
-            raise ValueError("Rate must be greater than or equal to zero.")
+            raise ValueError('Rate must be greater than or equal to zero.')
         self._rate = value
 
     @staticmethod
@@ -84,13 +84,13 @@ class Loan(object):
         """
 
         if frequency <= 0:
-            raise ValueError("Frequnecy must be greater than zero.")
+            raise ValueError('Frequnecy must be greater than zero.')
         if principal < 0:
-            raise ValueError("Principal must be greater than or equal to zero.")
+            raise ValueError('Principal must be greater than or equal to zero.')
         if rate < 0:
-            raise ValueError("Rate must be greater than or equal to zero.")
+            raise ValueError('Rate must be greater than or equal to zero.')
 
-        return principal * (rate / frequency)
+        return round(principal * (rate / frequency), 2)
 
     @staticmethod
     def calculate_form_factor(frequency, length, rate):
@@ -102,11 +102,11 @@ class Loan(object):
         """
 
         if frequency <= 0:
-            raise ValueError("Frequnecy must be greater than zero.")
+            raise ValueError('Frequnecy must be greater than zero.')
         if length <= 0:
-            raise ValueError("Length must be greater than zero.")
+            raise ValueError('Length must be greater than zero.')
         if rate < 0:
-            raise ValueError("Rate must be greater than or equal to zero.")
+            raise ValueError('Rate must be greater than or equal to zero.')
 
         n = length * frequency
 
@@ -125,11 +125,12 @@ class Loan(object):
         """
 
         if not self._check_required_inputs(ignore_principal=True):
-            raise RuntimeError("All necessary variables have not been set.")
+            raise RuntimeError('All necessary variables have not been set.')
 
         payment = self.principal * self.calculate_form_factor(
             self.frequency, self.length, self.rate
         )
+        payment = round(payment, 2)
 
         if store_result:
             self.payment = payment
@@ -144,11 +145,12 @@ class Loan(object):
         """
 
         if not self._check_required_inputs(ignore_payment=True):
-            raise RuntimeError("All necessary variables have not been set.")
+            raise RuntimeError('All necessary variables have not been set.')
 
         principal = self.payment / self.calculate_form_factor(
             self.frequency, self.length, self.rate
         )
+        principal = round(principal, 2)
 
         if store_result:
             self.principal = principal
