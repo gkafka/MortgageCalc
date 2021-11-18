@@ -181,6 +181,12 @@ class Loan(object):
         }
 
     def write(self, out_path, pretty_print=False):
+        """Serialize the object to disk.
+
+        :param string out_path: Path and file name for output
+        :param bool pretty_print: Whether to write the JSON in a more readable format
+        """
+
         kwargs = {'cls': complex_encoder.ComplexEncoder, 'sort_keys': True}
         if pretty_print:
             kwargs['indent'] = 4
