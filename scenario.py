@@ -1,19 +1,38 @@
 # Python imports
 from datetime import datetime, timedelta
-from typing import Type
+import json
 
+# Local imports
+import complex_encoder
 import loan
 
+# Dict key constants
 DATE = 'date'
-END_DATE = 'end date'
-LAST = 'last'
+END_DATE = 'end_date'
+LOAN = 'loan'
+ONE_TIME_PAYMENTS = 'one_time_payments'
 PAYMENT = 'payment'
 PERIOD = 'period'
-PROCESSED = 'processed'
-START_DATE = 'start date'
+RECURRING_PAYMENTS = 'recurring_payments'
+START_DATE = 'start_date'
 
-def validate_and_convert_string_to_datetime(value):
-    """Verify a string is ISO 8601 format with no time and convert it to a datetime.
+# ISO 8601 format constant
+ISO8601_NO_TIME = '%Y-%m-%d'
+
+def convert_datetime_to_string(dt):
+    """Convert a datetime object to ISO 8601 format with no time.
+
+    :param datetime dt: The datetime object
+    """
+
+    if not isinstance(dt, datetime):
+        raise TypeError('Input must be a datetime object.')
+
+    return dt.strftime(ISO8601_NO_TIME)
+
+
+def convert_string_to_datetime(value):
+    """Convert a string in ISO 8601 format with no time to a datetime object.
 
     :param string value: A string representing a date in ISO 8601 with no time
     """
@@ -21,7 +40,7 @@ def validate_and_convert_string_to_datetime(value):
     if not isinstance(value, str):
         raise TypeError('Start date must be a string.')
     try:
-        dt = datetime.strptime(value, '%Y-%m-%d')
+        dt = datetime.strptime(value, ISO8601_NO_TIME)
         return dt
     except ValueError:
         raise ValueError('Start date must be in the form YYYY-MM-DD.')
@@ -74,7 +93,7 @@ class Scenario(object):
         return self._start_date
     @start_date.setter
     def start_date(self, value):
-        self._start_date = validate_and_convert_string_to_datetime(value)
+        self._start_date = convert_string_to_datetime(value)
 
     def add_one_time_payment(self, payment, date):
         """Add a one time payment to the scenario.
@@ -88,8 +107,8 @@ class Scenario(object):
         if payment < 0:
             raise ValueError('Payment must be greater than or equal to zero.')
 
-        dt = validate_and_convert_string_to_datetime(date)
-        self._one_time_payments.append({DATE: dt, PAYMENT: payment, PROCESSED: False})
+        dt = convert_string_to_datetime(date)
+        self._one_time_payments.append({DATE: dt, PAYMENT: payment})
 
         return
 
@@ -115,10 +134,10 @@ class Scenario(object):
         if payment < 0:
             raise ValueError('Payment must be greater than or equal to zero.')
 
-        dt_start = validate_and_convert_string_to_datetime(start)
-        dt_end = datetime.now() + timedelta(days=365)
+        dt_start = convert_string_to_datetime(start)
+        dt_end = self.start_date + timedelta(days=365 * self.loan.length)
         if end:
-            dt_end = validate_and_convert_string_to_datetime(end)
+            dt_end = convert_string_to_datetime(end)
 
         if not isinstance(period, int):
             raise TypeError('Period must be an integer.')
@@ -128,7 +147,6 @@ class Scenario(object):
         self._recurring_payments.append(
             {
                 END_DATE: dt_end,
-                LAST: 1,
                 PAYMENT: payment,
                 PERIOD: period,
                 START_DATE: dt_start,
@@ -153,15 +171,23 @@ class Scenario(object):
         results.cumulative_payments.append(0.0)
         results.remaining_principal.append(remaining_principal)
 
+        unprocessed = 'unprocessed'
+        for payment_dict in self._one_time_payments:
+            payment_dict[unprocessed] = True
+
+        last = 'last'
+        for payment_dict in self._recurring_payments:
+            payment_dict[last] = 1
+
         while remaining_principal >= 0.01:
             current_sim_date += timedelta(365.25 / frequency)
             extra_payments = 0.0
 
             for payment_dict in self._one_time_payments:
-                if payment_dict[DATE] < current_sim_date and not payment_dict[PROCESSED]:
+                if payment_dict[DATE] < current_sim_date and unprocessed in payment_dict:
                     extra_payments += payment_dict[PAYMENT]
                     remaining_principal -= payment_dict[PAYMENT]
-                    payment_dict[PROCESSED] = True
+                    del payment_dict[unprocessed]
 
             interest = self.loan.interest(remaining_principal, rate, frequency)
             principal_payment = standard_payment - interest
@@ -169,17 +195,18 @@ class Scenario(object):
                 principal_payment = remaining_principal
             remaining_principal -= principal_payment
 
-            for payment_dict in self._recurring_payments:
-                if (
-                    payment_dict[START_DATE] <= current_sim_date and
-                    current_sim_date <= payment_dict[END_DATE]
-                ):
-                    if payment_dict[LAST] >= payment_dict[PERIOD]:
-                        extra_payments += payment_dict[PAYMENT]
-                        remaining_principal -= payment_dict[PAYMENT]
-                        payment_dict[LAST] = 1
-                    else:
-                        payment_dict[LAST] += 1
+            if remaining_principal >= 0.01:
+                for payment_dict in self._recurring_payments:
+                    if (
+                        payment_dict[START_DATE] <= current_sim_date and
+                        current_sim_date <= payment_dict[END_DATE]
+                    ):
+                        if payment_dict[last] >= payment_dict[PERIOD]:
+                            extra_payments += payment_dict[PAYMENT]
+                            remaining_principal -= payment_dict[PAYMENT]
+                            payment_dict[last] = 1
+                        else:
+                            payment_dict[last] += 1
 
             results.cumulative_interest.append(results.cumulative_interest[-1] + interest)
             results.cumulative_payments.append(
@@ -191,4 +218,47 @@ class Scenario(object):
         results.total_interest = results.cumulative_interest[-1]
         results.total_payment = results.cumulative_payments[-1]
 
+        for payment_dict in self._one_time_payments:
+            if unprocessed in payment_dict:
+                del payment_dict[unprocessed]
+        for payment_dict in self._recurring_payments:
+            if last in payment_dict:
+                del payment_dict[last]
+
         return results
+
+    def to_dict(self):
+        """Convert a Scenario object to a dict.
+        """
+
+        def convert_all_datetimes_to_strings(ld):
+            return [
+                {
+                    k: v if not isinstance(v, datetime) else convert_datetime_to_string(v)
+                    for k, v in d.items()
+                }
+                for d in ld
+            ]
+
+        return {
+            LOAN: self.loan,
+            ONE_TIME_PAYMENTS: convert_all_datetimes_to_strings(self._one_time_payments),
+            RECURRING_PAYMENTS: convert_all_datetimes_to_strings(self._recurring_payments),
+            START_DATE: convert_datetime_to_string(self.start_date),
+        }
+
+    def write(self, out_path, pretty_print=False):
+        """Serialize the object to disk.
+
+        :param string out_path: Path and file name for output
+        :param bool pretty_print: Whether to write the JSON in a more readable format
+        """
+
+        kwargs = {'cls': complex_encoder.ComplexEncoder, 'sort_keys': True}
+        if pretty_print:
+            kwargs['indent'] = 4
+
+        with open(out_path, 'w+') as f:
+            json.dump(self.to_dict(), f, **kwargs)
+
+        return True
