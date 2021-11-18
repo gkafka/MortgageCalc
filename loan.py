@@ -1,3 +1,14 @@
+# Python imports
+import json
+
+# Local imports
+import complex_encoder
+
+FREQUENCY = 'frequency'
+LENGTH = 'length'
+PAYMENT = 'payment'
+PRINCIPAL = 'principal'
+RATE = 'rate'
 
 
 class Loan(object):
@@ -156,6 +167,28 @@ class Loan(object):
             self.principal = principal
 
         return principal
+
+    def to_dict(self):
+        """Convert a Loan object to a dict.
+        """
+
+        return {
+            FREQUENCY: self.frequency,
+            LENGTH: self.length,
+            PAYMENT: self.payment,
+            PRINCIPAL: self.principal,
+            RATE: self.rate,
+        }
+
+    def write(self, out_path, pretty_print=False):
+        kwargs = {'cls': complex_encoder.ComplexEncoder, 'sort_keys': True}
+        if pretty_print:
+            kwargs['indent'] = 4
+
+        with open(out_path, 'w+') as f:
+            json.dump(self.to_dict(), f, **kwargs)
+
+        return True
 
     def _check_required_inputs(self, ignore_payment=True, ignore_principal=True):
         """Check that inputs required for calculations have been set.
