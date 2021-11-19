@@ -95,6 +95,41 @@ class Scenario(object):
     def start_date(self, value):
         self._start_date = convert_string_to_datetime(value)
 
+    @classmethod
+    def from_dict(cls, d):
+        """Create a Scenario object from a dict.
+
+        :param dict d: The dict encoding a scenario.
+        """
+
+        # A Loan object is required to construct a Scenario object.
+        # If this key is not present, then the input is a recursive dict entry.
+        if LOAN not in d:
+            return d
+
+        l = loan.Loan.from_dict(d[LOAN])
+        s = cls(l)
+        if START_DATE in d:
+            s.start_date = d[START_DATE]
+        if ONE_TIME_PAYMENTS in d:
+            for pd in d[ONE_TIME_PAYMENTS]:
+                s.add_one_time_payment(**pd)
+        if RECURRING_PAYMENTS in d:
+            for pd in d[RECURRING_PAYMENTS]:
+                s.add_recurring_payment(**pd)
+
+        return s
+
+    @classmethod
+    def from_json(cls, in_path):
+        """Create a Scenario object from a JSON file.
+
+        :param string in_path: Path and file name to input
+        """
+
+        with open(in_path, 'r') as f:
+            return json.load(f, object_hook=cls.from_dict)
+
     def add_one_time_payment(self, payment, date):
         """Add a one time payment to the scenario.
 
@@ -112,7 +147,7 @@ class Scenario(object):
 
         return
 
-    def add_recurring_payment(self, payment, start, end='', period=1):
+    def add_recurring_payment(self, payment, start_date, end_date='', period=1):
         """Add a recurring payment to the scenario.
 
         Recurring payments are simulated at the standard payment date. The start and
@@ -134,10 +169,10 @@ class Scenario(object):
         if payment < 0:
             raise ValueError('Payment must be greater than or equal to zero.')
 
-        dt_start = convert_string_to_datetime(start)
+        dt_start = convert_string_to_datetime(start_date)
         dt_end = self.start_date + timedelta(days=365 * self.loan.length)
-        if end:
-            dt_end = convert_string_to_datetime(end)
+        if end_date:
+            dt_end = convert_string_to_datetime(end_date)
 
         if not isinstance(period, int):
             raise TypeError('Period must be an integer.')
@@ -247,8 +282,8 @@ class Scenario(object):
             START_DATE: convert_datetime_to_string(self.start_date),
         }
 
-    def write(self, out_path, pretty_print=False):
-        """Serialize the object to disk.
+    def to_json(self, out_path, pretty_print=False):
+        """Serialize the object to disk as JSON.
 
         :param string out_path: Path and file name for output
         :param bool pretty_print: Whether to write the JSON in a more readable format

@@ -85,6 +85,37 @@ class Loan(object):
             raise ValueError('Rate must be greater than or equal to zero.')
         self._rate = value
 
+    @classmethod
+    def from_dict(cls, d):
+        """Create a Loan object from a dict.
+
+        :param dict d: The dict encoding a loan.
+        """
+
+        l = cls()
+        if FREQUENCY in d:
+            l.frequency = d[FREQUENCY]
+        if LENGTH in d:
+            l.length = d[LENGTH]
+        if PAYMENT in d:
+            l.payment = d[PAYMENT]
+        if PRINCIPAL in d:
+            l.principal = d[PRINCIPAL]
+        if RATE in d:
+            l.rate = d[RATE]
+
+        return l
+
+    @classmethod
+    def from_json(cls, in_path):
+        """Create a Loan object from a JSON file.
+
+        :param string in_path: Path and file name to input
+        """
+
+        with open(in_path, 'r') as f:
+            return json.load(f, object_hook=cls.from_dict)
+
     @staticmethod
     def interest(principal, rate, frequency):
         """Calculate the interest charged per loan cycle.
@@ -180,8 +211,8 @@ class Loan(object):
             RATE: self.rate,
         }
 
-    def write(self, out_path, pretty_print=False):
-        """Serialize the object to disk.
+    def to_json(self, out_path, pretty_print=False):
+        """Serialize the object to disk as JSON.
 
         :param string out_path: Path and file name for output
         :param bool pretty_print: Whether to write the JSON in a more readable format
